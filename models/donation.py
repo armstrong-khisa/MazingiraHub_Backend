@@ -6,23 +6,28 @@ from extensions import db
 class Donation(db.Model):
     __tablename__ = "donations"
 
+    # ── Columns (matches ERD exactly) ─────────────────────────────────────────
+
     id = db.Column(
         db.Integer,
         primary_key=True
     )
 
+    # FK → USERS.id
     donor_id = db.Column(
         db.Integer,
         db.ForeignKey("users.id"),
         nullable=False
     )
 
+    # FK → ORGANIZATIONS.id
     organization_id = db.Column(
         db.Integer,
         db.ForeignKey("organizations.id"),
         nullable=False
     )
 
+    # FK → PROJECTS.id  (nullable — donation can be org-level, not project-level)
     project_id = db.Column(
         db.Integer,
         db.ForeignKey("projects.id"),
@@ -40,6 +45,7 @@ class Donation(db.Model):
         default="KES"
     )
 
+    # ERD: donation_type (one-time/monthly)
     donation_type = db.Column(
         db.String(20),
         nullable=False,
@@ -57,6 +63,7 @@ class Donation(db.Model):
         nullable=True
     )
 
+    # ERD: status (pending/success/failed)
     status = db.Column(
         db.String(20),
         nullable=False,
@@ -81,7 +88,22 @@ class Donation(db.Model):
         nullable=False
     )
 
-    # Relationships
+    # ── Relationships ──────────────────────────────────────────────────────────
+
+    # DONOR (User) → 0..* DONATIONS
+    donor = db.relationship(
+        "User",
+        foreign_keys=[donor_id],
+        backref=db.backref("donations", lazy="dynamic")
+    )
+
+    # ORGANIZATION 1 → 0..* DONATIONS
+    organization = db.relationship(
+        "Organization",
+        back_populates="donations"
+    )
+
+    # PROJECT 1 → 0..* DONATIONS  (optional)
     project = db.relationship(
         "Project",
         back_populates="donations"
