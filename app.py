@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-
+from controllers.auth_controller import auth_bp
 from extensions import db, migrate, jwt
 
 
@@ -15,6 +15,8 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    from controllers.auth_controller import auth_bp
 
     # ── Import models so Flask-Migrate can detect them ─────────────────────────
     from models import User, Organization, Project, Donation  # noqa: F401
