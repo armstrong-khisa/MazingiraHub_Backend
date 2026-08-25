@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, app, jsonify
 from controllers.auth_controller import auth_bp
 from extensions import db, migrate, jwt
 
@@ -16,15 +16,17 @@ def create_app():
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    from controllers.auth_controller import auth_bp
+    
 
     # ── Import models so Flask-Migrate can detect them ─────────────────────────
     from models import User, Organization, Project, Donation  # noqa: F401
 
-    # ── Blueprints ─────────────────────────────────────────────────────────────
+   # ── Blueprints ─────────────────────────────────────────────────────────────
+    app.register_blueprint(auth_bp)
+
+   # ── Blueprints ─────────────────────────────────────────────────────────────
     from controllers.project_controller import project_bp
     app.register_blueprint(project_bp)
-
     # ── Global error handlers ──────────────────────────────────────────────────
     @app.errorhandler(400)
     def bad_request(e):
