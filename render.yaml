@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mazingira-hub-backend
+    runtime: python
+    buildCommand: pip install pipenv && pipenv install --deploy
+    startCommand: pipenv run gunicorn app:app
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14
