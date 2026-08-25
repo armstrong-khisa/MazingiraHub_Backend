@@ -1,0 +1,469 @@
+from flask import request, jsonify
+
+from extensions import db
+
+from models.organization import Organization
+from models.organization_application import OrganizationApplication
+
+from schemas.organization_schema import OrganizationSchema
+from schemas.organization_application_schema import OrganizationApplicationSchema
+
+
+# ============================================================
+# SCHEMAS
+# ============================================================
+
+organization_schema = OrganizationSchema()
+organizations_schema = OrganizationSchema(many=True)
+
+application_schema = OrganizationApplicationSchema()
+applications_schema = OrganizationApplicationSchema(many=True)
+
+
+# ============================================================
+# ORGANIZATION ROUTES
+# ============================================================
+
+def register_organization_routes(app):
+
+    # ========================================================
+    # 1. SUBMIT ORGANIZATION APPLICATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/applications",
+        methods=["POST"]
+    )
+    def submit_organization_application():
+
+        data = request.get_json()
+
+        # Check if request contains JSON
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Request body is required"
+            }), 400
+
+        try:
+            # Convert JSON data into an SQLAlchemy object
+            application = application_schema.load(data)
+
+            # Add application to database
+            db.session.add(application)
+
+            # Save changes
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Organization application submitted successfully",
+                "data": application_schema.dump(application)
+            }), 201
+
+        except Exception as error:
+
+            # Undo database changes if something fails
+            db.session.rollback()
+
+            return jsonify({
+                "success": False,
+                "message": "Failed to submit organization application",
+                "error": str(error)
+            }), 400
+
+
+    # ========================================================
+    # 2. GET ALL ORGANIZATION APPLICATIONS
+    # ========================================================
+
+    @app.route(
+        "/organizations/applications",
+        methods=["GET"]
+    )
+    def get_organization_applications():
+
+        applications = OrganizationApplication.query.all()
+
+        return jsonify({
+            "success": True,
+            "count": len(applications),
+            "data": applications_schema.dump(applications)
+        }), 200
+
+
+    # ========================================================
+    # 3. GET ONE ORGANIZATION APPLICATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/applications/<int:application_id>",
+        methods=["GET"]
+    )
+    def get_organization_application(application_id):
+
+        application = OrganizationApplication.query.get(
+            application_id
+        )
+
+        if not application:
+            return jsonify({
+                "success": False,
+                "message": "Organization application not found"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": application_schema.dump(application)
+        }), 200
+
+
+    # ========================================================
+    # 4. APPROVE ORGANIZATION APPLICATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/applications/<int:application_id>/approve",
+        methods=["PATCH"]
+    )
+    def approve_organization_application(application_id):
+
+        application = OrganizationApplication.query.get(
+            application_id
+        )
+
+        # Check whether application exists
+        if not application:
+            return jsonify({
+                "success": False,
+                "message": "Organization application not found"
+            }), 404
+
+        # Prevent approving an already approved application
+        if application.status == "approved":
+            return jsonify({
+                "success": False,
+                "message": "This application is already approved"
+            }), 400
+
+        # Prevent approving a rejected application
+        if application.status == "rejected":
+            return jsonify({
+                "success": False,
+                "message": "A rejected application cannot be approved"
+            }), 400
+
+        data = request.get_json() or {}
+
+        reviewed_by = data.get("reviewed_by")
+
+        # Make sure an admin/reviewer was supplied
+        if not reviewed_by:
+            return jsonify({
+                "success": False,
+                "message": "reviewed_by is required"
+            }), 400
+
+        try:
+
+            # Update application
+            application.status = "approved"
+            application.reviewed_by = reviewed_by
+
+            # Create organization from approved application
+            organization = Organization(
+                name=application.org_name,
+                description=application.description,
+                approved_by=reviewed_by,
+                approved=True
+            )
+
+            db.session.add(organization)
+
+            # Save everything
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Organization application approved successfully",
+
+                "application": application_schema.dump(
+                    application
+                ),
+
+                "organization": organization_schema.dump(
+                    organization
+                )
+            }), 200
+
+        except Exception as error:
+
+            db.session.rollback()
+
+            return jsonify({
+                "success": False,
+                "message": "Failed to approve organization application",
+                "error": str(error)
+            }), 400
+
+
+    # ========================================================
+    # 5. REJECT ORGANIZATION APPLICATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/applications/<int:application_id>/reject",
+        methods=["PATCH"]
+    )
+    def reject_organization_application(application_id):
+
+        application = OrganizationApplication.query.get(
+            application_id
+        )
+
+        # Check whether application exists
+        if not application:
+            return jsonify({
+                "success": False,
+                "message": "Organization application not found"
+            }), 404
+
+        # Prevent rejecting an already approved application
+        if application.status == "approved":
+            return jsonify({
+                "success": False,
+                "message": "An approved application cannot be rejected"
+            }), 400
+
+        # Prevent rejecting twice
+        if application.status == "rejected":
+            return jsonify({
+                "success": False,
+                "message": "This application is already rejected"
+            }), 400
+
+        data = request.get_json() or {}
+
+        reviewed_by = data.get("reviewed_by")
+
+        if not reviewed_by:
+            return jsonify({
+                "success": False,
+                "message": "reviewed_by is required"
+            }), 400
+
+        try:
+
+            application.status = "rejected"
+            application.reviewed_by = reviewed_by
+
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Organization application rejected successfully",
+                "data": application_schema.dump(application)
+            }), 200
+
+        except Exception as error:
+
+            db.session.rollback()
+
+            return jsonify({
+                "success": False,
+                "message": "Failed to reject organization application",
+                "error": str(error)
+            }), 400
+
+
+    # ========================================================
+    # ORGANIZATIONS
+    # ========================================================
+
+    # ========================================================
+    # 6. GET ALL ORGANIZATIONS
+    # ========================================================
+
+    @app.route(
+        "/organizations",
+        methods=["GET"]
+    )
+    def get_organizations():
+
+        organizations = Organization.query.all()
+
+        return jsonify({
+            "success": True,
+            "count": len(organizations),
+            "data": organizations_schema.dump(organizations)
+        }), 200
+
+
+    # ========================================================
+    # 7. GET ONE ORGANIZATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/<int:organization_id>",
+        methods=["GET"]
+    )
+    def get_organization(organization_id):
+
+        organization = Organization.query.get(
+            organization_id
+        )
+
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization not found"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": organization_schema.dump(organization)
+        }), 200
+
+
+    # ========================================================
+    # 8. CREATE ORGANIZATION
+    # ========================================================
+
+    @app.route(
+        "/organizations",
+        methods=["POST"]
+    )
+    def create_organization():
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Request body is required"
+            }), 400
+
+        try:
+
+            organization = organization_schema.load(data)
+
+            db.session.add(organization)
+
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Organization created successfully",
+                "data": organization_schema.dump(
+                    organization
+                )
+            }), 201
+
+        except Exception as error:
+
+            db.session.rollback()
+
+            return jsonify({
+                "success": False,
+                "message": "Failed to create organization",
+                "error": str(error)
+            }), 400
+
+
+    # ========================================================
+    # 9. UPDATE ORGANIZATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/<int:organization_id>",
+        methods=["PATCH"]
+    )
+    def update_organization(organization_id):
+
+        organization = Organization.query.get(
+            organization_id
+        )
+
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization not found"
+            }), 404
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "Request body is required"
+            }), 400
+
+        try:
+
+            organization = organization_schema.load(
+                data,
+                instance=organization,
+                partial=True
+            )
+
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Organization updated successfully",
+                "data": organization_schema.dump(
+                    organization
+                )
+            }), 200
+
+        except Exception as error:
+
+            db.session.rollback()
+
+            return jsonify({
+                "success": False,
+                "message": "Failed to update organization",
+                "error": str(error)
+            }), 400
+
+
+    # ========================================================
+    # 10. DELETE ORGANIZATION
+    # ========================================================
+
+    @app.route(
+        "/organizations/<int:organization_id>",
+        methods=["DELETE"]
+    )
+    def delete_organization(organization_id):
+
+        organization = Organization.query.get(
+            organization_id
+        )
+
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization not found"
+            }), 404
+
+        try:
+
+            db.session.delete(organization)
+
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "message": "Organization deleted successfully"
+            }), 200
+
+        except Exception as error:
+
+            db.session.rollback()
+
+            return jsonify({
+                "success": False,
+                "message": "Failed to delete organization",
+                "error": str(error)
+            }), 400
