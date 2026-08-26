@@ -1,4 +1,6 @@
-from flask import Flask, app, jsonify
+import os
+
+from flask import Flask, jsonify
 from controllers.auth_controller import auth_bp
 from extensions import db, migrate, jwt
 
@@ -9,14 +11,15 @@ def create_app():
     # ── Config ─────────────────────────────────────────────────────────────────
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///mazingirahub.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = "change-this-secret-key"
+    app.config["JWT_SECRET_KEY"] = os.getenv(
+        "JWT_SECRET_KEY",
+        "development-secret-key-change-me-32-bytes-long"
+    )
 
     # ── Extensions ─────────────────────────────────────────────────────────────
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-
-    
 
     # ── Import models so Flask-Migrate can detect them ─────────────────────────
     from models import User, Organization, Project, Donation  # noqa: F401
