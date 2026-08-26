@@ -17,16 +17,24 @@ def create_app():
     jwt.init_app(app)
 
     # ── Import models so Flask-Migrate can detect them ─────────────────────────
-    from models import User, Organization, Project, Donation, Beneficiary, InventoryItem  # noqa: F401
+    from models import (  # noqa: F401
+        User, Organization, Project, Donation,
+        RecurringDonation, Beneficiary, InventoryItem,
+        Story, StoryMedia
+    )
 
     # ── Blueprints ─────────────────────────────────────────────────────────────
     from controllers.project_controller import project_bp
     from controllers.beneficiary_controller import beneficiary_bp
     from controllers.inventory_controller import inventory_bp
+    from controllers.recurring_donation_controller import recurring_bp
+    from controllers.story_controller import story_bp
 
     app.register_blueprint(project_bp)
     app.register_blueprint(beneficiary_bp)
     app.register_blueprint(inventory_bp)
+    app.register_blueprint(recurring_bp)
+    app.register_blueprint(story_bp)
 
     # ── Global error handlers ──────────────────────────────────────────────────
     @app.errorhandler(400)
@@ -44,6 +52,10 @@ def create_app():
     @app.errorhandler(404)
     def not_found(e):
         return jsonify({"error": "Not Found", "message": str(e.description)}), 404
+
+    @app.errorhandler(409)
+    def conflict(e):
+        return jsonify({"error": "Conflict", "message": str(e.description)}), 409
 
     @app.errorhandler(422)
     def unprocessable(e):

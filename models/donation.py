@@ -109,5 +109,13 @@ class Donation(db.Model):
         back_populates="donations"
     )
 
+    # DONATION 1 → 0..1 RECURRING_DONATION
+    recurring_donation = db.relationship(
+        "RecurringDonation",
+        back_populates="donation",
+        uselist=False,          # one-to-one
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return f"<Donation {self.id}: {self.amount} {self.currency}>"
