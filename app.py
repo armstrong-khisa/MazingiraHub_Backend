@@ -1,8 +1,9 @@
 import os
 
-from flask import Flask, jsonify
+from flask import Flask,  jsonify
 from controllers.auth_controller import auth_bp
 from extensions import db, migrate, jwt
+from controllers.organization_controller import register_organization_routes
 
 
 def create_app():
@@ -30,6 +31,9 @@ def create_app():
    # ── Blueprints ─────────────────────────────────────────────────────────────
     from controllers.project_controller import project_bp
     app.register_blueprint(project_bp)
+
+    from controllers.organization_controller import register_organization_routes
+    register_organization_routes(app)
     # ── Global error handlers ──────────────────────────────────────────────────
     @app.errorhandler(400)
     def bad_request(e):

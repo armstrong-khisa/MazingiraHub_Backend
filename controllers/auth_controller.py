@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 
 from extensions import db
 from models import User
@@ -111,6 +112,29 @@ def login():
     return jsonify({
         "message": "Login successful",
         "access_token": access_token,
+        "user": {
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone,
+            "role": user.role,
+            "status": user.status
+        }
+    }), 200
+
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required()
+def me():
+    user_id = get_jwt_identity()
+
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({
+            "error": "User not found"
+        }), 404
+
+    return jsonify({
         "user": {
             "id": user.id,
             "full_name": user.full_name,
