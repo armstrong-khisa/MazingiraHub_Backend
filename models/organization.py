@@ -61,5 +61,11 @@ class Organization(db.Model):
         foreign_keys=[approved_by]
     )
 
+    projects = db.relationship(
+        "Project",
+        back_populates="organization",
+        lazy="dynamic"
+    )
+
     def __repr__(self):
         return f"<Organization {self.name}>"
