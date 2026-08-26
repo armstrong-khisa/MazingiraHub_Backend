@@ -1,4 +1,6 @@
 from flask import request, jsonify
+from functools import wraps
+from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
 
 from extensions import db
 
@@ -24,16 +26,35 @@ applications_schema = OrganizationApplicationSchema(many=True)
 # ORGANIZATION ROUTES
 # ============================================================
 
+def role_required(*allowed_roles):
+    def decorator(function):
+        @wraps(function)
+        @jwt_required()
+        def wrapper(*args, **kwargs):
+            claims = get_jwt()
+            user_role = claims.get("role")
+
+            if user_role not in allowed_roles:
+                return jsonify({
+                    "success": False,
+                    "message": "You do not have permission to perform this action"
+                }), 403
+
+            return function(*args, **kwargs)
+
+        return wrapper
+    return decorator
+
 def register_organization_routes(app):
 
     # ========================================================
     # 1. SUBMIT ORGANIZATION APPLICATION
     # ========================================================
-
     @app.route(
         "/organizations/applications",
         methods=["POST"]
     )
+    @jwt_required()
     def submit_organization_application():
 
         data = request.get_json()
@@ -81,6 +102,7 @@ def register_organization_routes(app):
         "/organizations/applications",
         methods=["GET"]
     )
+    @role_required("admin")
     def get_organization_applications():
 
         applications = OrganizationApplication.query.all()
@@ -100,6 +122,8 @@ def register_organization_routes(app):
         "/organizations/applications/<int:application_id>",
         methods=["GET"]
     )
+
+    @role_required("admin")
     def get_organization_application(application_id):
 
         application = OrganizationApplication.query.get(
@@ -126,6 +150,8 @@ def register_organization_routes(app):
         "/organizations/applications/<int:application_id>/approve",
         methods=["PATCH"]
     )
+
+    @role_required("admin")
     def approve_organization_application(application_id):
 
         application = OrganizationApplication.query.get(
@@ -153,16 +179,7 @@ def register_organization_routes(app):
                 "message": "A rejected application cannot be approved"
             }), 400
 
-        data = request.get_json() or {}
-
-        reviewed_by = data.get("reviewed_by")
-
-        # Make sure an admin/reviewer was supplied
-        if not reviewed_by:
-            return jsonify({
-                "success": False,
-                "message": "reviewed_by is required"
-            }), 400
+        reviewed_by = get_jwt_identity()
 
         try:
 
@@ -215,6 +232,7 @@ def register_organization_routes(app):
         "/organizations/applications/<int:application_id>/reject",
         methods=["PATCH"]
     )
+    @role_required("admin")
     def reject_organization_application(application_id):
 
         application = OrganizationApplication.query.get(
@@ -242,15 +260,7 @@ def register_organization_routes(app):
                 "message": "This application is already rejected"
             }), 400
 
-        data = request.get_json() or {}
-
-        reviewed_by = data.get("reviewed_by")
-
-        if not reviewed_by:
-            return jsonify({
-                "success": False,
-                "message": "reviewed_by is required"
-            }), 400
+        reviewed_by = get_jwt_identity()
 
         try:
 
