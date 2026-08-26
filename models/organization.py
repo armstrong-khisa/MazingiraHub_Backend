@@ -83,5 +83,21 @@ class Organization(db.Model):
         lazy="dynamic"
     )
 
+    # ORGANIZATION 1 → 0..* BENEFICIARIES
+    beneficiaries = db.relationship(
+        "Beneficiary",
+        back_populates="organization",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    # ORGANIZATION 1 → 0..* INVENTORY_ITEMS
+    inventory_items = db.relationship(
+        "InventoryItem",
+        back_populates="organization",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return f"<Organization {self.id}: {self.name}>"
