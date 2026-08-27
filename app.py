@@ -101,6 +101,8 @@ def create_app():
     app.register_blueprint(auth_bp)
 
     from controllers.admin_controller import admin_bp
+    from controllers.donor_controller import donor_bp
+    from controllers.organization_dashboard_controller import organization_dashboard_bp
     from controllers.donation_controller import donation_bp
     from controllers.project_controller import project_bp
     from controllers.beneficiary_controller import beneficiary_bp
@@ -111,6 +113,8 @@ def create_app():
     from controllers.user_controller import user_bp
 
     app.register_blueprint(admin_bp)
+    app.register_blueprint(donor_bp)
+    app.register_blueprint(organization_dashboard_bp)
     app.register_blueprint(donation_bp)
     app.register_blueprint(project_bp)
     app.register_blueprint(beneficiary_bp)
