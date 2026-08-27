@@ -13,6 +13,8 @@ marshmallow-sqlalchemy = "*"
 python-dotenv = "*"
 requests = "*"
 gunicorn = "*"
+psycopg2-binary = "*"
+
 
 [dev-packages]
 
