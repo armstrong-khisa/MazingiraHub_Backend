@@ -60,8 +60,16 @@ def register():
             "error": "Email already registered"
         }), 409
 
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={
+            "role": user.role
+        }
+    )
+
     return jsonify({
         "message": "User registered successfully",
+        "access_token": access_token,
         "user": {
             "id": user.id,
             "full_name": user.full_name,
