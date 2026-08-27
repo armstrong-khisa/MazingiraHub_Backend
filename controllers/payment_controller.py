@@ -169,7 +169,6 @@ def mpesa_callback():
     if parsed["success"]:
         payment.status = "success"
         payment.paid_at = datetime.now(timezone.utc)
-        payment.provider_payment_id = parsed.get("mpesa_receipt") or checkout_id
 
         # Update donation status
         payment.donation.status = "success"
