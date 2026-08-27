@@ -6,6 +6,8 @@ from flask import Flask, jsonify
 
 from controllers.auth_controller import auth_bp
 from extensions import db, ma, migrate, jwt
+from flask_cors import CORS
+
 
 
 # Load .env for local development.
@@ -22,6 +24,17 @@ logging.basicConfig(
 
 def create_app():
     app = Flask(__name__)
+
+    CORS(
+    app,
+    origins=[
+        "https://mazingira-hub-system.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
+    supports_credentials=True,
+)
+
 
     # ── Config ─────────────────────────────────────────────────────────────────
 
