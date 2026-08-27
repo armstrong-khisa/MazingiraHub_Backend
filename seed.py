@@ -159,7 +159,7 @@ def get_or_create_user(email, values):
     return user
 
 
-def get_or_create_organization(name, description, mission, location, admin_id):
+def get_or_create_organization(name, description, mission, location, admin_id, user_id=None):
     organization = Organization.query.filter_by(name=name).first()
     if not organization:
         organization = Organization(
@@ -169,9 +169,12 @@ def get_or_create_organization(name, description, mission, location, admin_id):
             location=location,
             approved_by=admin_id,
             approved=True,
+            user_id=user_id,
         )
         db.session.add(organization)
         db.session.flush()
+    elif user_id and organization.user_id is None:
+        organization.user_id = user_id
     return organization
 
 
@@ -180,9 +183,19 @@ def seed():
         email: get_or_create_user(email, values)
         for email, values in SEED_USERS.items()
     }
+    organization_user_ids = {
+        "Green Future Kenya": users["greenfuture@mazingirahub.test"].id,
+        "Clean Water Initiative": users["cleanwater@mazingirahub.test"].id,
+        "Youth for Earth": users["youth4earth@mazingirahub.test"].id,
+    }
     organizations = {
         name: get_or_create_organization(
-            name, description, mission, location, users["admin@mazingirahub.test"].id
+            name,
+            description,
+            mission,
+            location,
+            users["admin@mazingirahub.test"].id,
+            organization_user_ids.get(name),
         )
         for name, description, mission, location in ORGANIZATIONS
     }

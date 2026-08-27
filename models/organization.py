@@ -33,6 +33,13 @@ class Organization(db.Model):
         nullable=True
     )
 
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=True,
+        unique=True
+    )
+
     # FK → USERS.id  (admin who approved this org)
     approved_by = db.Column(
         db.Integer,
@@ -66,6 +73,12 @@ class Organization(db.Model):
         "User",
         foreign_keys=[approved_by],
         backref=db.backref("approved_organizations", lazy="dynamic")
+    )
+
+    user = db.relationship(
+        "User",
+        foreign_keys=[user_id],
+        backref=db.backref("organization_profile", uselist=False)
     )
 
     # ORGANIZATION 1 → 0..* PROJECTS
