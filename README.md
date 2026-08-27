@@ -2,7 +2,7 @@
 
 Backend service for MazingiraHub, a platform intended to connect donors with organizations and make the progress of funded projects visible. The project is built with Flask, SQLAlchemy, Flask-Migrate, and JWT support.
 
-> **Development status:** The repository is currently the foundation of the backend. The root health endpoint and the `User` model are implemented. The remaining controllers, domain models, and schemas are placeholders, so the domain API described in the ERD is not available yet.
+> **Development status:** The core domain models, authentication, organization applications, donations, projects, payments, recurring donations, inventory, beneficiaries, and stories are implemented. The endpoint suite still needs automated integration coverage before production use.
 
 ## Contents
 
@@ -32,8 +32,12 @@ The current application provides:
 - A `User` model with password hashing using Werkzeug.
 - User roles with a default of `donor` and account status with a default of `active`.
 - A root endpoint that can be used as a basic health check.
+- JWT authentication endpoints under `/api/auth`.
+- Organization application review endpoints and public organization reads.
+- Donation creation and donor-scoped reads under `/api/donations`.
+- Project, payment, recurring donation, inventory, beneficiary, and story endpoints under `/api`.
 
-Authentication routes and authorization checks have not been implemented yet. JWT is initialized, but no token-issuing or protected route currently uses it.
+JWT protection is applied to authenticated operations. Role-specific authorization is currently implemented for organization application review.
 
 ## Planned domain
 
@@ -148,7 +152,7 @@ Response:
 Welcome to MazingiraHub Backend!
 ```
 
-The controller files do not currently register routes, so there are no implemented authentication, user, organization, project, donation, payment, inventory, beneficiary, or story endpoints to call yet.
+Authentication routes are available under `/api/auth`; domain routes are available under `/api` and organization application routes are available under `/organizations`.
 
 ## Data model
 
@@ -170,17 +174,17 @@ The `User` model in [`models/user.py`](models/user.py) currently contains:
 
 Use `set_password()` and `check_password()` rather than manipulating `password_hash` directly.
 
-### Planned tables
+### Additional tables
 
 The ERD identifies these additional tables for future implementation:
 
 `donor_profiles`, `organization_profiles`, `organizations`, `organization_applications`, `projects`, `donations`, `payments`, `recurring_donations`, `inventory_items`, `beneficiaries`, `stories`, and `story_media`.
 
-The corresponding files exist under `models/`, but they are currently empty and are not registered with the application.
+The implemented model files are registered through `models/__init__.py` and imported by the application factory for migration discovery. The ERD's `donor_profiles` and `organization_profiles` tables still need dedicated model, schema, controller, and migration files.
 
 ## Database migrations
 
-Flask-Migrate is initialized, but this repository does not currently include a migrations directory or migration scripts. Once models are implemented, initialize and manage migrations with:
+Flask-Migrate is initialized and the repository includes migration scripts. Review generated migration files against the ERD before applying new changes:
 
 ```bash
 pipenv run flask --app app db init
