@@ -107,5 +107,11 @@ class Organization(db.Model):
         cascade="all, delete-orphan"
     )
 
+    projects = db.relationship(
+        "Project",
+        back_populates="organization",
+        lazy="dynamic"
+    )
+
     def __repr__(self):
         return f"<Organization {self.id}: {self.name}>"

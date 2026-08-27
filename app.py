@@ -1,10 +1,16 @@
+
 import logging
 import os
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify
 
+import os
+
+from flask import Flask,  jsonify
+from controllers.auth_controller import auth_bp
 from extensions import db, migrate, jwt
+from controllers.organization_controller import register_organization_routes
 
 # Load .env before anything else
 load_dotenv()
@@ -24,6 +30,12 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "change-this-secret-key")
 
+    app.config["JWT_SECRET_KEY"] = os.getenv(
+        "JWT_SECRET_KEY",
+        "development-secret-key-change-me-32-bytes-long"
+    )
+
+
     # ── Extensions ─────────────────────────────────────────────────────────────
     db.init_app(app)
     migrate.init_app(app, db)
@@ -36,7 +48,10 @@ def create_app():
         Story, StoryMedia
     )
 
-    # ── Blueprints ─────────────────────────────────────────────────────────────
+   # ── Blueprints ─────────────────────────────────────────────────────────────
+    app.register_blueprint(auth_bp)
+
+   # ── Blueprints ─────────────────────────────────────────────────────────────
     from controllers.project_controller import project_bp
     from controllers.beneficiary_controller import beneficiary_bp
     from controllers.inventory_controller import inventory_bp
@@ -51,6 +66,8 @@ def create_app():
     app.register_blueprint(story_bp)
     app.register_blueprint(payment_bp)
 
+    from controllers.organization_controller import register_organization_routes
+    register_organization_routes(app)
     # ── Global error handlers ──────────────────────────────────────────────────
     @app.errorhandler(400)
     def bad_request(e):
