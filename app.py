@@ -1,6 +1,19 @@
+import logging
+import os
+
+from dotenv import load_dotenv
 from flask import Flask, jsonify
 
 from extensions import db, migrate, jwt
+
+# Load .env before anything else
+load_dotenv()
+
+# Basic logging so callback payloads show in terminal
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 
 def create_app():
@@ -9,7 +22,7 @@ def create_app():
     # ── Config ─────────────────────────────────────────────────────────────────
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///mazingirahub.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = "change-this-secret-key"
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "change-this-secret-key")
 
     # ── Extensions ─────────────────────────────────────────────────────────────
     db.init_app(app)
@@ -18,7 +31,7 @@ def create_app():
 
     # ── Import models so Flask-Migrate can detect them ─────────────────────────
     from models import (  # noqa: F401
-        User, Organization, Project, Donation,
+        User, Organization, Project, Donation, Payment,
         RecurringDonation, Beneficiary, InventoryItem,
         Story, StoryMedia
     )
@@ -29,12 +42,14 @@ def create_app():
     from controllers.inventory_controller import inventory_bp
     from controllers.recurring_donation_controller import recurring_bp
     from controllers.story_controller import story_bp
+    from controllers.payment_controller import payment_bp
 
     app.register_blueprint(project_bp)
     app.register_blueprint(beneficiary_bp)
     app.register_blueprint(inventory_bp)
     app.register_blueprint(recurring_bp)
     app.register_blueprint(story_bp)
+    app.register_blueprint(payment_bp)
 
     # ── Global error handlers ──────────────────────────────────────────────────
     @app.errorhandler(400)
@@ -60,6 +75,10 @@ def create_app():
     @app.errorhandler(422)
     def unprocessable(e):
         return jsonify({"error": "Unprocessable Entity", "message": str(e.description)}), 422
+
+    @app.errorhandler(502)
+    def bad_gateway(e):
+        return jsonify({"error": "Bad Gateway", "message": str(e.description)}), 502
 
     @app.errorhandler(500)
     def server_error(e):

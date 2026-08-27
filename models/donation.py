@@ -113,7 +113,15 @@ class Donation(db.Model):
     recurring_donation = db.relationship(
         "RecurringDonation",
         back_populates="donation",
-        uselist=False,          # one-to-one
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
+    # DONATION 1 → 0..1 PAYMENT
+    payment = db.relationship(
+        "Payment",
+        back_populates="donation",
+        uselist=False,
         cascade="all, delete-orphan"
     )
 
