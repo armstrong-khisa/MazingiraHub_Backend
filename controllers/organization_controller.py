@@ -1,14 +1,16 @@
 from flask import request, jsonify
 from functools import wraps
-from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 
 from extensions import db
 
 from models.organization import Organization
+from models.user import User
 from models.organization_application import OrganizationApplication
 
 from schemas.organization_schema import OrganizationSchema
 from schemas.organization_application_schema import OrganizationApplicationSchema
+from schemas.user_schema import serialize_user, validate_profile_update
 
 
 # ============================================================
@@ -57,7 +59,7 @@ def register_organization_routes(app):
     @jwt_required()
     def submit_organization_application():
 
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Check if request contains JSON
         if not data:
@@ -65,6 +67,10 @@ def register_organization_routes(app):
                 "success": False,
                 "message": "Request body is required"
             }), 400
+
+        data["user_id"] = int(get_jwt_identity())
+        if "name" in data and "org_name" not in data:
+            data["org_name"] = data.pop("name")
 
         try:
             # Convert JSON data into an SQLAlchemy object
@@ -192,8 +198,11 @@ def register_organization_routes(app):
                 name=application.org_name,
                 description=application.description,
                 approved_by=reviewed_by,
+                user_id=application.user_id,
                 approved=True
             )
+
+            application.applicant.role = "organization"
 
             db.session.add(organization)
 
@@ -289,6 +298,51 @@ def register_organization_routes(app):
     # ========================================================
     # ORGANIZATIONS
     # ========================================================
+
+    @app.route("/api/organization/profile", methods=["GET"])
+    @role_required("organization")
+    def get_current_organization_profile():
+        user = db.session.get(User, int(get_jwt_identity()))
+        organization = Organization.query.filter_by(user_id=user.id).first()
+
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization profile not found"
+            }), 404
+
+        profile = organization_schema.dump(organization)
+        profile.update(serialize_user(user))
+        return jsonify({"profile": profile}), 200
+
+    @app.route("/api/organization/profile", methods=["PUT"])
+    @role_required("organization")
+    def update_current_organization_profile():
+        user = db.session.get(User, int(get_jwt_identity()))
+        organization = Organization.query.filter_by(user_id=user.id).first()
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization profile not found"
+            }), 404
+
+        data = request.get_json(silent=True) or {}
+        user_data = validate_profile_update({
+            field: data[field]
+            for field in ("full_name", "phone")
+            if field in data
+        }) if any(field in data for field in ("full_name", "phone")) else {}
+        for field, value in user_data.items():
+            setattr(user, field, value)
+
+        for field in ("name", "description", "mission", "location"):
+            if field in data:
+                setattr(organization, field, data[field])
+
+        db.session.commit()
+        profile = organization_schema.dump(organization)
+        profile.update(serialize_user(user))
+        return jsonify({"profile": profile}), 200
 
     # ========================================================
     # 6. GET ALL ORGANIZATIONS
