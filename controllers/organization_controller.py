@@ -1,10 +1,12 @@
 from flask import request, jsonify
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
+from sqlalchemy import func
 
 from extensions import db
 
 from models.organization import Organization
+from models.donation import Donation
 from models.user import User
 from models.organization_application import OrganizationApplication
 
@@ -22,6 +24,17 @@ organizations_schema = OrganizationSchema(many=True)
 
 application_schema = OrganizationApplicationSchema()
 applications_schema = OrganizationApplicationSchema(many=True)
+
+
+def serialize_organization(organization):
+    data = organization_schema.dump(organization)
+    data["moneyRaised"] = float(db.session.query(
+        func.coalesce(func.sum(Donation.amount), 0)
+    ).filter(
+        Donation.organization_id == organization.id,
+        Donation.status == "success",
+    ).scalar() or 0)
+    return data
 
 
 # ============================================================
@@ -217,7 +230,7 @@ def register_organization_routes(app):
                     application
                 ),
 
-                "organization": organization_schema.dump(
+                "organization": serialize_organization(
                     organization
                 )
             }), 200
@@ -311,7 +324,7 @@ def register_organization_routes(app):
                 "message": "Organization profile not found"
             }), 404
 
-        profile = organization_schema.dump(organization)
+        profile = serialize_organization(organization)
         profile.update(serialize_user(user))
         return jsonify({"profile": profile}), 200
 
@@ -340,7 +353,7 @@ def register_organization_routes(app):
                 setattr(organization, field, data[field])
 
         db.session.commit()
-        profile = organization_schema.dump(organization)
+        profile = serialize_organization(organization)
         profile.update(serialize_user(user))
         return jsonify({"profile": profile}), 200
 
@@ -359,7 +372,7 @@ def register_organization_routes(app):
         return jsonify({
             "success": True,
             "count": len(organizations),
-            "data": organizations_schema.dump(organizations)
+            "data": [serialize_organization(organization) for organization in organizations]
         }), 200
 
 
@@ -385,7 +398,7 @@ def register_organization_routes(app):
 
         return jsonify({
             "success": True,
-            "data": organization_schema.dump(organization)
+            "data": serialize_organization(organization)
         }), 200
 
 
@@ -418,7 +431,7 @@ def register_organization_routes(app):
             return jsonify({
                 "success": True,
                 "message": "Organization created successfully",
-                "data": organization_schema.dump(
+                "data": serialize_organization(
                     organization
                 )
             }), 201
@@ -475,7 +488,7 @@ def register_organization_routes(app):
             return jsonify({
                 "success": True,
                 "message": "Organization updated successfully",
-                "data": organization_schema.dump(
+                "data": serialize_organization(
                     organization
                 )
             }), 200
