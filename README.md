@@ -194,18 +194,18 @@ pipenv run flask --app app db upgrade
 
 Review generated migration files before applying them. The SQLite database file is created relative to Flask's instance configuration when the application accesses the database.
 
-## Testing
+### Testing
 
-The `tests/` package currently contains no test cases. After installing dependencies, a basic smoke check can be run with:
+The backend includes focused pytest coverage for authentication, donations, and seeded media. Run the suite with:
 
 ```bash
-pipenv run python -c "from app import app; response = app.test_client().get('/'); print(response.status_code, response.get_data(as_text=True))"
+pipenv run pytest -q
 ```
 
-Expected output begins with:
+Run the application smoke check with:
 
-```text
-200 Welcome to MazingiraHub Backend!
+```bash
+pipenv run python -c "from app import app; response = app.test_client().get('/'); assert response.status_code == 200; print(response.get_json())"
 ```
 
 As the API is implemented, add focused tests for authentication, role authorization, validation, database relationships, donations, and payment status handling.

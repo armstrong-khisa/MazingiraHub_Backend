@@ -28,7 +28,15 @@ jobs:
         run: |
           pipenv sync --dev
 
-      - name: Verify application
+      - name: Run tests before deployment
+        run: |
+          pipenv run pytest -q
+
+      - name: Run application smoke test
+        run: |
+          pipenv run python -c "from app import app; response = app.test_client().get('/'); assert response.status_code == 200; print(response.get_json())"
+
+      - name: Verify Python modules
         run: |
           pipenv run python -m compileall .
 

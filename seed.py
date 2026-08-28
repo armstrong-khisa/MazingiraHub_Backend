@@ -68,11 +68,11 @@ SEED_USERS = {
 SEED_PASSWORD = "MazingiraTest123!"
 
 ORGANIZATIONS = [
-    ("Green Future Kenya", "Community-led environmental restoration and education.", "Restore local ecosystems through practical community action.", "Nairobi, Kenya"),
-    ("Clean Water Initiative", "Improving reliable access to safe water in underserved communities.", "Make clean water accessible to every household.", "Turkana, Kenya"),
-    ("Youth for Earth", "Equipping young people to lead practical climate action.", "Build a generation of confident environmental leaders.", "Nairobi, Kenya"),
-    ("Mombasa Coastal Conservation", "Protecting coastal ecosystems with local communities.", "Restore mangroves and keep the Kenyan coast healthy.", "Mombasa, Kenya"),
-    ("Kenya Community Food Network", "Supporting resilient, locally grown food systems.", "Help communities grow nutritious food sustainably.", "Kisumu, Kenya"),
+    ("Green Future Kenya", "Community-led environmental restoration and education.", "Restore local ecosystems through practical community action.", "Nairobi, Kenya", "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1200"),
+    ("Clean Water Initiative", "Improving reliable access to safe water in underserved communities.", "Make clean water accessible to every household.", "Turkana, Kenya", "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=1200"),
+    ("Youth for Earth", "Equipping young people to lead practical climate action.", "Build a generation of confident environmental leaders.", "Nairobi, Kenya", "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200"),
+    ("Mombasa Coastal Conservation", "Protecting coastal ecosystems with local communities.", "Restore mangroves and keep the Kenyan coast healthy.", "Mombasa, Kenya", "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200"),
+    ("Kenya Community Food Network", "Supporting resilient, locally grown food systems.", "Help communities grow nutritious food sustainably.", "Kisumu, Kenya", "https://images.unsplash.com/photo-1464221314753-3a5f0d5f2a2f?w=1200"),
 ]
 
 PROJECTS = [
@@ -127,9 +127,11 @@ STORIES = [
 ]
 
 STORY_MEDIA = [
-    ("1,000 Trees Planted in Nairobi", "https://images.example.test/stories/nairobi-trees.jpg"),
-    ("Clean Water Reaches Turkana", "https://images.example.test/stories/turkana-water.jpg"),
-    ("Mangroves Return to the Coast", "https://images.example.test/stories/mangroves.jpg"),
+    ("1,000 Trees Planted in Nairobi", "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200"),
+    ("Clean Water Reaches Turkana", "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=1200"),
+    ("Mangroves Return to the Coast", "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200"),
+    ("Youth Leading the Plastic Cleanup", "https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=1200"),
+    ("Community Gardens Begin to Grow", "https://images.unsplash.com/photo-1492496913980-501348b5e9a4?w=1200"),
 ]
 
 PAYMENTS = [
@@ -159,7 +161,7 @@ def get_or_create_user(email, values):
     return user
 
 
-def get_or_create_organization(name, description, mission, location, admin_id, user_id=None):
+def get_or_create_organization(name, description, mission, location, image_url, admin_id, user_id=None):
     organization = Organization.query.filter_by(name=name).first()
     if not organization:
         organization = Organization(
@@ -167,6 +169,7 @@ def get_or_create_organization(name, description, mission, location, admin_id, u
             description=description,
             mission=mission,
             location=location,
+            image_url=image_url,
             approved_by=admin_id,
             approved=True,
             user_id=user_id,
@@ -175,6 +178,8 @@ def get_or_create_organization(name, description, mission, location, admin_id, u
         db.session.flush()
     elif user_id and organization.user_id is None:
         organization.user_id = user_id
+    if organization.image_url != image_url:
+        organization.image_url = image_url
     return organization
 
 
@@ -194,10 +199,11 @@ def seed():
             description,
             mission,
             location,
+            image_url,
             users["admin@mazingirahub.test"].id,
             organization_user_ids.get(name),
         )
-        for name, description, mission, location in ORGANIZATIONS
+        for name, description, mission, location, image_url in ORGANIZATIONS
     }
 
     projects = {}
