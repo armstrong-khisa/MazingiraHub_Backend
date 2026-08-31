@@ -10,8 +10,14 @@ flask-migrate = "*"
 flask-jwt-extended = "*"
 flask-marshmallow = "*"
 marshmallow-sqlalchemy = "*"
+python-dotenv = "*"
+requests = "*"
+gunicorn = "*"
+psycopg2-binary = "*"
+flask-cors = "*"
 
 [dev-packages]
+pytest = "*"
 
 [requires]
 python_version = "3.14"

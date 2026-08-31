@@ -1,12 +1,18 @@
 from flask import request, jsonify
+from functools import wraps
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
+from sqlalchemy import func
 
 from extensions import db
 
 from models.organization import Organization
+from models.donation import Donation
+from models.user import User
 from models.organization_application import OrganizationApplication
 
 from schemas.organization_schema import OrganizationSchema
 from schemas.organization_application_schema import OrganizationApplicationSchema
+from schemas.user_schema import serialize_user, validate_profile_update
 
 
 # ============================================================
@@ -20,23 +26,53 @@ application_schema = OrganizationApplicationSchema()
 applications_schema = OrganizationApplicationSchema(many=True)
 
 
+def serialize_organization(organization):
+    data = organization_schema.dump(organization)
+    data["moneyRaised"] = float(db.session.query(
+        func.coalesce(func.sum(Donation.amount), 0)
+    ).filter(
+        Donation.organization_id == organization.id,
+        Donation.status == "success",
+    ).scalar() or 0)
+    return data
+
+
 # ============================================================
 # ORGANIZATION ROUTES
 # ============================================================
+
+def role_required(*allowed_roles):
+    def decorator(function):
+        @wraps(function)
+        @jwt_required()
+        def wrapper(*args, **kwargs):
+            claims = get_jwt()
+            user_role = claims.get("role")
+
+            if user_role not in allowed_roles:
+                return jsonify({
+                    "success": False,
+                    "message": "You do not have permission to perform this action"
+                }), 403
+
+            return function(*args, **kwargs)
+
+        return wrapper
+    return decorator
 
 def register_organization_routes(app):
 
     # ========================================================
     # 1. SUBMIT ORGANIZATION APPLICATION
     # ========================================================
-
     @app.route(
         "/organizations/applications",
         methods=["POST"]
     )
+    @jwt_required()
     def submit_organization_application():
 
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         # Check if request contains JSON
         if not data:
@@ -44,6 +80,10 @@ def register_organization_routes(app):
                 "success": False,
                 "message": "Request body is required"
             }), 400
+
+        data["user_id"] = int(get_jwt_identity())
+        if "name" in data and "org_name" not in data:
+            data["org_name"] = data.pop("name")
 
         try:
             # Convert JSON data into an SQLAlchemy object
@@ -81,6 +121,7 @@ def register_organization_routes(app):
         "/organizations/applications",
         methods=["GET"]
     )
+    @role_required("admin")
     def get_organization_applications():
 
         applications = OrganizationApplication.query.all()
@@ -100,6 +141,8 @@ def register_organization_routes(app):
         "/organizations/applications/<int:application_id>",
         methods=["GET"]
     )
+
+    @role_required("admin")
     def get_organization_application(application_id):
 
         application = OrganizationApplication.query.get(
@@ -126,6 +169,8 @@ def register_organization_routes(app):
         "/organizations/applications/<int:application_id>/approve",
         methods=["PATCH"]
     )
+
+    @role_required("admin")
     def approve_organization_application(application_id):
 
         application = OrganizationApplication.query.get(
@@ -153,16 +198,7 @@ def register_organization_routes(app):
                 "message": "A rejected application cannot be approved"
             }), 400
 
-        data = request.get_json() or {}
-
-        reviewed_by = data.get("reviewed_by")
-
-        # Make sure an admin/reviewer was supplied
-        if not reviewed_by:
-            return jsonify({
-                "success": False,
-                "message": "reviewed_by is required"
-            }), 400
+        reviewed_by = get_jwt_identity()
 
         try:
 
@@ -175,8 +211,11 @@ def register_organization_routes(app):
                 name=application.org_name,
                 description=application.description,
                 approved_by=reviewed_by,
+                user_id=application.user_id,
                 approved=True
             )
+
+            application.applicant.role = "organization"
 
             db.session.add(organization)
 
@@ -191,7 +230,7 @@ def register_organization_routes(app):
                     application
                 ),
 
-                "organization": organization_schema.dump(
+                "organization": serialize_organization(
                     organization
                 )
             }), 200
@@ -215,6 +254,7 @@ def register_organization_routes(app):
         "/organizations/applications/<int:application_id>/reject",
         methods=["PATCH"]
     )
+    @role_required("admin")
     def reject_organization_application(application_id):
 
         application = OrganizationApplication.query.get(
@@ -242,15 +282,7 @@ def register_organization_routes(app):
                 "message": "This application is already rejected"
             }), 400
 
-        data = request.get_json() or {}
-
-        reviewed_by = data.get("reviewed_by")
-
-        if not reviewed_by:
-            return jsonify({
-                "success": False,
-                "message": "reviewed_by is required"
-            }), 400
+        reviewed_by = get_jwt_identity()
 
         try:
 
@@ -280,6 +312,51 @@ def register_organization_routes(app):
     # ORGANIZATIONS
     # ========================================================
 
+    @app.route("/api/organization/profile", methods=["GET"])
+    @role_required("organization")
+    def get_current_organization_profile():
+        user = db.session.get(User, int(get_jwt_identity()))
+        organization = Organization.query.filter_by(user_id=user.id).first()
+
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization profile not found"
+            }), 404
+
+        profile = serialize_organization(organization)
+        profile.update(serialize_user(user))
+        return jsonify({"profile": profile}), 200
+
+    @app.route("/api/organization/profile", methods=["PUT"])
+    @role_required("organization")
+    def update_current_organization_profile():
+        user = db.session.get(User, int(get_jwt_identity()))
+        organization = Organization.query.filter_by(user_id=user.id).first()
+        if not organization:
+            return jsonify({
+                "success": False,
+                "message": "Organization profile not found"
+            }), 404
+
+        data = request.get_json(silent=True) or {}
+        user_data = validate_profile_update({
+            field: data[field]
+            for field in ("full_name", "phone")
+            if field in data
+        }) if any(field in data for field in ("full_name", "phone")) else {}
+        for field, value in user_data.items():
+            setattr(user, field, value)
+
+        for field in ("name", "description", "mission", "location"):
+            if field in data:
+                setattr(organization, field, data[field])
+
+        db.session.commit()
+        profile = serialize_organization(organization)
+        profile.update(serialize_user(user))
+        return jsonify({"profile": profile}), 200
+
     # ========================================================
     # 6. GET ALL ORGANIZATIONS
     # ========================================================
@@ -295,7 +372,7 @@ def register_organization_routes(app):
         return jsonify({
             "success": True,
             "count": len(organizations),
-            "data": organizations_schema.dump(organizations)
+            "data": [serialize_organization(organization) for organization in organizations]
         }), 200
 
 
@@ -321,7 +398,7 @@ def register_organization_routes(app):
 
         return jsonify({
             "success": True,
-            "data": organization_schema.dump(organization)
+            "data": serialize_organization(organization)
         }), 200
 
 
@@ -354,7 +431,7 @@ def register_organization_routes(app):
             return jsonify({
                 "success": True,
                 "message": "Organization created successfully",
-                "data": organization_schema.dump(
+                "data": serialize_organization(
                     organization
                 )
             }), 201
@@ -411,7 +488,7 @@ def register_organization_routes(app):
             return jsonify({
                 "success": True,
                 "message": "Organization updated successfully",
-                "data": organization_schema.dump(
+                "data": serialize_organization(
                     organization
                 )
             }), 200
