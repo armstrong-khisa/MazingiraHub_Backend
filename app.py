@@ -43,6 +43,7 @@ def create_app():
     from controllers.recurring_donation_controller import recurring_bp
     from controllers.story_controller import story_bp
     from controllers.payment_controller import payment_bp
+    from controllers.stats_controller import stats_bp
 
     app.register_blueprint(project_bp)
     app.register_blueprint(beneficiary_bp)
@@ -50,6 +51,7 @@ def create_app():
     app.register_blueprint(recurring_bp)
     app.register_blueprint(story_bp)
     app.register_blueprint(payment_bp)
+    app.register_blueprint(stats_bp)
 
     # ── Global error handlers ──────────────────────────────────────────────────
     @app.errorhandler(400)
