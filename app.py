@@ -110,7 +110,11 @@ def create_app():
     from controllers.recurring_donation_controller import recurring_bp
     from controllers.story_controller import story_bp
     from controllers.payment_controller import payment_bp
+
+    from controllers.stats_controller import stats_bp
+
     from controllers.user_controller import user_bp
+
 
     app.register_blueprint(admin_bp)
     app.register_blueprint(donor_bp)
@@ -122,6 +126,9 @@ def create_app():
     app.register_blueprint(recurring_bp)
     app.register_blueprint(story_bp)
     app.register_blueprint(payment_bp)
+
+    app.register_blueprint(stats_bp)
+
     app.register_blueprint(user_bp)
 
     from controllers.organization_controller import (
@@ -131,6 +138,7 @@ def create_app():
     register_organization_routes(app)
 
     # ── Global error handlers ───────────────────────────────────────────────────
+
 
     @app.errorhandler(400)
     def bad_request(e):
