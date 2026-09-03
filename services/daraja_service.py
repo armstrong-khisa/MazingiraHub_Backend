@@ -212,7 +212,7 @@ def parse_callback(callback_data: dict) -> dict:
     result_code = stk_callback.get("ResultCode")
     result_desc = stk_callback.get("ResultDesc", "")
     checkout_request_id = stk_callback.get("CheckoutRequestID", "")
-    success = result_code == 0
+    success = str(result_code) == "0"
 
     mpesa_receipt = None
     amount = None

@@ -218,7 +218,7 @@ def query_payment_status(checkout_id):
     # Reconcile the local record while polling so callback timing cannot leave
     # the frontend showing a different status from donation history.
     payment = Payment.query.filter_by(provider_payment_id=checkout_id).first()
-    result_code = result.get("ResultCode")
+    result_code = result.get("ResultCode", result.get("ResponseCode"))
     if payment and result_code is not None:
         result_code = str(result_code)
         if result_code == "0":
