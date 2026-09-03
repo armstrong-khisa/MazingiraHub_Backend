@@ -45,7 +45,7 @@ class Payment(db.Model):
         default="KES"
     )
 
-    # ERD: status (success/failed/pending)
+    # Status values: pending, paid, cancelled
     status = db.Column(
         db.String(20),
         nullable=False,
@@ -58,7 +58,7 @@ class Payment(db.Model):
         nullable=True
     )
 
-    # ERD: paid_at (nullable) — set when status → success
+    # Set when status becomes paid.
     paid_at = db.Column(
         db.DateTime,
         nullable=True

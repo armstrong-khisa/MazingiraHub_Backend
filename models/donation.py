@@ -63,7 +63,7 @@ class Donation(db.Model):
         nullable=True
     )
 
-    # ERD: status (pending/success/failed)
+    # Status values: pending, paid, cancelled
     status = db.Column(
         db.String(20),
         nullable=False,

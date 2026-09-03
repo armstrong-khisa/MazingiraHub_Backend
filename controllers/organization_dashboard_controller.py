@@ -69,7 +69,7 @@ def list_organization_donors():
     donors = []
     for donor in pagination.items:
         donor_donations = Donation.query.filter_by(
-            organization_id=organization.id, donor_id=donor.id, status="success"
+            organization_id=organization.id, donor_id=donor.id, status="paid"
         )
         donors.append({
             "id": donor.id,
@@ -80,7 +80,7 @@ def list_organization_donors():
             "totalDonated": float(db.session.query(func.coalesce(func.sum(Donation.amount), 0)).filter(
                 Donation.organization_id == organization.id,
                 Donation.donor_id == donor.id,
-                Donation.status == "success",
+                Donation.status == "paid",
             ).scalar() or 0),
         })
 
@@ -110,14 +110,14 @@ def get_organization_donor(donor_id):
 def get_organization_stats():
     organization = _current_organization()
     donations = Donation.query.filter_by(organization_id=organization.id)
-    successful = donations.filter_by(status="success")
+    successful = donations.filter_by(status="paid")
     return jsonify({"stats": {
         "totalDonations": float(db.session.query(func.coalesce(func.sum(Donation.amount), 0)).filter(
-            Donation.organization_id == organization.id, Donation.status == "success"
+            Donation.organization_id == organization.id, Donation.status == "paid"
         ).scalar() or 0),
         "donationCount": successful.count(),
         "activeDonors": db.session.query(func.count(distinct(Donation.donor_id))).filter(
-            Donation.organization_id == organization.id, Donation.status == "success"
+            Donation.organization_id == organization.id, Donation.status == "paid"
         ).scalar() or 0,
         "publishedStories": Story.query.filter_by(organization_id=organization.id, published=True).count(),
         "beneficiaries": Beneficiary.query.filter_by(organization_id=organization.id).count(),
@@ -128,14 +128,14 @@ def get_organization_stats():
 @jwt_required()
 def get_organization_donation_stats():
     organization = _current_organization()
-    donations = Donation.query.filter_by(organization_id=organization.id, status="success")
+    donations = Donation.query.filter_by(organization_id=organization.id, status="paid")
     amounts = [donation.amount for donation in donations.all()]
     return jsonify({"stats": {
         "averageDonation": float(sum(amounts) / len(amounts)) if amounts else 0,
         "largestDonation": float(max(amounts)) if amounts else 0,
         "thisMonth": 0,
         "recurringCount": Donation.query.filter_by(
-            organization_id=organization.id, donation_type="monthly", status="success"
+            organization_id=organization.id, donation_type="monthly", status="paid"
         ).count(),
     }}), 200
 

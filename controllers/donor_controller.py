@@ -24,13 +24,13 @@ def _get_current_donor():
 def get_donor_stats():
     donor_id = int(get_jwt_identity())
     donations = Donation.query.filter_by(donor_id=donor_id)
-    successful_donations = donations.filter(Donation.status == "success")
+    successful_donations = donations.filter(Donation.status == "paid")
 
     total_donated = db.session.query(
         func.coalesce(func.sum(Donation.amount), 0)
     ).filter(
         Donation.donor_id == donor_id,
-        Donation.status == "success",
+        Donation.status == "paid",
     ).scalar()
 
     donation_count = successful_donations.count()
@@ -44,7 +44,7 @@ def get_donor_stats():
         func.count(distinct(Donation.organization_id))
     ).filter(
         Donation.donor_id == donor_id,
-        Donation.status == "success",
+        Donation.status == "paid",
     ).scalar()
 
     return jsonify({
