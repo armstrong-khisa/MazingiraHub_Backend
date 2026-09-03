@@ -142,9 +142,9 @@ def mpesa_callback():
     Flow:
         1. Parse callback payload
         2. Find the Payment by CheckoutRequestID
-        3. Update Payment status (success/failed)
+        3. Update Payment status (paid/cancelled)
         4. Update Donation status to match
-        5. If success, update project.amount_raised
+        5. If paid, update project.amount_raised
     """
     callback_data = request.get_json(silent=True) or {}
     logger.info("M-Pesa callback received: %s", json.dumps(callback_data))
@@ -167,17 +167,18 @@ def mpesa_callback():
     payment.raw_callback = json.dumps(callback_data)
 
     if parsed["success"]:
-        payment.status = "success"
+        was_paid = payment.status == "paid"
+        payment.status = "paid"
         payment.paid_at = datetime.now(timezone.utc)
 
         # Update donation status
-        payment.donation.status = "success"
+        payment.donation.status = "paid"
         payment.donation.payment_ref = parsed.get("mpesa_receipt")
         payment.donation.payment_method = "mpesa"
 
         # Update project.amount_raised if the donation is linked to a project
         project = payment.donation.project
-        if project:
+        if project and not was_paid:
             project.amount_raised = (
                 float(project.amount_raised) + float(payment.amount)
             )
@@ -186,8 +187,8 @@ def mpesa_callback():
                 project.completed = True
 
     else:
-        payment.status = "failed"
-        payment.donation.status = "failed"
+        payment.status = "cancelled"
+        payment.donation.status = "cancelled"
         logger.info(
             "STK push failed for checkout %s: %s",
             checkout_id,
@@ -214,8 +215,26 @@ def query_payment_status(checkout_id):
     except RuntimeError as e:
         abort(502, description=str(e))
 
-    # Also return local payment record if it exists
+    # Reconcile the local record while polling so callback timing cannot leave
+    # the frontend showing a different status from donation history.
     payment = Payment.query.filter_by(provider_payment_id=checkout_id).first()
+    result_code = result.get("ResultCode")
+    if payment and result_code is not None:
+        result_code = str(result_code)
+        if result_code == "0":
+            was_paid = payment.status == "paid"
+            payment.status = "paid"
+            payment.paid_at = payment.paid_at or datetime.now(timezone.utc)
+            payment.donation.status = "paid"
+            if payment.donation.project and not was_paid:
+                project = payment.donation.project
+                project.amount_raised = float(project.amount_raised) + float(payment.amount)
+                if float(project.amount_raised) >= float(project.goal_amount):
+                    project.completed = True
+        elif result_code != "1037":
+            payment.status = "cancelled"
+            payment.donation.status = "cancelled"
+        db.session.commit()
 
     return jsonify({
         "daraja_response": result,
@@ -234,7 +253,7 @@ def list_payments():
     Query params:
         page       int   default 1
         per_page   int   default 10 (max 100)
-        status     str   filter by status (pending/success/failed)
+        status     str   filter by status (pending/paid/cancelled)
         method     str   filter by payment_method (mpesa/stripe/paypal)
     """
     page = request.args.get("page", 1, type=int)

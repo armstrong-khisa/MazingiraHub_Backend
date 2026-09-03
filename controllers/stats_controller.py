@@ -59,10 +59,10 @@ def _build_stats() -> dict:
         .scalar() or 0
     )
 
-    # Total donations amount — only count donations with status='success'
+    # Total donations amount — only count donations with status='paid'
     total_donations = (
         db.session.query(func.coalesce(func.sum(Donation.amount), 0))
-        .filter(Donation.status == "success")
+        .filter(Donation.status == "paid")
         .scalar()
     )
     total_donations = float(total_donations or 0)

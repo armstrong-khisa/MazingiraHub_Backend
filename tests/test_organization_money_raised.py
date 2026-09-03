@@ -16,7 +16,7 @@ def test_organization_api_includes_successful_money_raised(client, app):
                 donor_id=donor.id,
                 organization_id=organization.id,
                 amount=Decimal("125.50"),
-                status="success",
+                status="paid",
             ),
             Donation(
                 donor_id=donor.id,

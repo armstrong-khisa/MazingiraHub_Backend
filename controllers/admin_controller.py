@@ -227,7 +227,7 @@ def get_admin_stats():
 		"totalOrganizations": Organization.query.filter_by(approved=True).count(),
 		"pendingApplications": OrganizationApplication.query.filter_by(status="pending").count(),
 		"totalDonors": User.query.filter_by(role="donor", status="active").count(),
-		"totalDonations": float(db.session.query(func.coalesce(func.sum(Donation.amount), 0)).filter(Donation.status == "success").scalar() or 0),
+		"totalDonations": float(db.session.query(func.coalesce(func.sum(Donation.amount), 0)).filter(Donation.status == "paid").scalar() or 0),
 		"approvedOrganizations": Organization.query.filter_by(approved=True).count(),
 		"totalUsers": User.query.count(),
 		"thisMonthDonations": 0,

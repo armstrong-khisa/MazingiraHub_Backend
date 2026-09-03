@@ -32,7 +32,7 @@ def serialize_organization(organization):
         func.coalesce(func.sum(Donation.amount), 0)
     ).filter(
         Donation.organization_id == organization.id,
-        Donation.status == "success",
+        Donation.status == "paid",
     ).scalar() or 0)
     return data
 

@@ -51,9 +51,15 @@ def create_donation():
 @jwt_required()
 def list_donations():
 	donor_id = int(get_jwt_identity())
+	status = request.args.get("status", "").strip().lower()
+	if status and status not in {"pending", "paid", "cancelled"}:
+		abort(400, description="Status must be pending, paid, or cancelled.")
+
+	query = Donation.query.filter_by(donor_id=donor_id)
+	if status:
+		query = query.filter(Donation.status == status)
 	donations = (
-		Donation.query
-		.filter_by(donor_id=donor_id)
+		query
 		.order_by(Donation.created_at.desc())
 		.all()
 	)

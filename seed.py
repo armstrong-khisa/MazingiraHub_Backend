@@ -244,7 +244,7 @@ def seed():
                 currency="KES",
                 donation_type="one-time",
                 is_anonymous=False,
-                status="success",
+                status="paid",
                 payment_method="seed",
             ))
 
