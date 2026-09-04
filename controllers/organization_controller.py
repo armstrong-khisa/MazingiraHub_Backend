@@ -81,18 +81,51 @@ def register_organization_routes(app):
                 "message": "Request body is required"
             }), 400
 
-        data["user_id"] = int(get_jwt_identity())
-        if "name" in data and "org_name" not in data:
-            data["org_name"] = data.pop("name")
+        if get_jwt().get("role") != "donor":
+            return jsonify({
+                "success": False,
+                "message": "Only donor accounts can create organization applications"
+            }), 403
+
+        required_fields = ("org_name", "email", "password", "description")
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        if missing_fields:
+            return jsonify({
+                "success": False,
+                "message": f"Missing required fields: {', '.join(missing_fields)}"
+            }), 400
+        if len(data["password"]) < 8:
+            return jsonify({
+                "success": False,
+                "message": "Password must be at least 8 characters long"
+            }), 400
 
         try:
-            # Convert JSON data into an SQLAlchemy object
-            application = application_schema.load(data)
+            organization_email = data["email"].strip().lower()
+            if User.query.filter_by(email=organization_email).first():
+                return jsonify({
+                    "success": False,
+                    "message": "Email already registered"
+                }), 409
 
-            # Add application to database
+            organization_user = User(
+                full_name=data["org_name"].strip(),
+                email=organization_email,
+                role="organization",
+                status="inactive",
+            )
+            organization_user.set_password(data["password"])
+            db.session.add(organization_user)
+            db.session.flush()
+
+            application = OrganizationApplication(
+                user_id=organization_user.id,
+                org_name=data["org_name"].strip(),
+                description=data["description"].strip(),
+                image_url=data.get("image_url") or None,
+            )
+
             db.session.add(application)
-
-            # Save changes
             db.session.commit()
 
             return jsonify({
@@ -210,12 +243,14 @@ def register_organization_routes(app):
             organization = Organization(
                 name=application.org_name,
                 description=application.description,
+                image_url=application.image_url,
                 approved_by=reviewed_by,
                 user_id=application.user_id,
                 approved=True
             )
 
             application.applicant.role = "organization"
+            application.applicant.status = "active"
 
             db.session.add(organization)
 
