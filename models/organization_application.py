@@ -27,6 +27,11 @@ class OrganizationApplication(db.Model):
         nullable=False
     )
 
+    image_url = db.Column(
+        db.String(500),
+        nullable=True
+    )
+
     registration_docs_url = db.Column(
         db.String(500),
         nullable=True

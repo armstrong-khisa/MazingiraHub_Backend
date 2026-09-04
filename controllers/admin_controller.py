@@ -139,11 +139,13 @@ def _review_application(application_id, status):
 		organization = Organization(
 			name=application.org_name,
 			description=application.description,
+			image_url=application.image_url,
 			approved_by=int(get_jwt_identity()),
 			user_id=application.user_id,
 			approved=True,
 		)
 		application.applicant.role = "organization"
+		application.applicant.status = "active"
 		db.session.add(organization)
 		db.session.commit()
 		return jsonify({"application": _application_data(application), "organization": _organization_data(organization)}), 200
