@@ -1,7 +1,7 @@
 """add image url to organization applications
 
 Revision ID: a91f4e2c7b10
-Revises: f1a844147b31
+Revises: 542a4e8aa723
 Create Date: 2026-09-04
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "a91f4e2c7b10"
-down_revision = "f1a844147b31"
+down_revision = "542a4e8aa723"
 branch_labels = None
 depends_on = None
 
